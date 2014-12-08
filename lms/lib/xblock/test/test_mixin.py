@@ -121,3 +121,13 @@ class XBlockGroupAccessTest(LmsXBlockMixinTestCase):
         self.video.group_access[self.user_partition.id] = [self.group2.id, 999]    # pylint: disable=no-member
         self.assertFalse(self.video.is_visible_to_group(self.user_partition, self.group1))
         self.assertTrue(self.video.is_visible_to_group(self.user_partition, self.group2))
+
+
+class XBlockGetParentTest(LmsXBlockMixinTestCase):
+
+    def test_parents(self):
+        self.assertIsNone(self.course.get_parent())
+        self.assertEqual(self.section.get_parent().location, self.course.location)
+        self.assertEqual(self.subsection.get_parent().location, self.section.location)
+        self.assertEqual(self.vertical.get_parent().location, self.subsection.location)
+        self.assertEqual(self.video.get_parent().location, self.subsection.location)

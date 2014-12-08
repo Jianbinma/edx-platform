@@ -31,7 +31,7 @@ from sortedcontainers import SortedListWithKey
 
 from importlib import import_module
 from opaque_keys.edx.keys import UsageKey, CourseKey, AssetKey
-from opaque_keys.edx.locations import Location
+from opaque_keys.edx.locations import Location, BlockUsageLocator
 from opaque_keys.edx.locations import SlashSeparatedCourseKey
 from opaque_keys.edx.locator import CourseLocator, LibraryLocator
 
@@ -93,12 +93,13 @@ class MongoKeyValueStore(InheritanceKeyValueStore):
     A KeyValueStore that maps keyed data access to one of the 3 data areas
     known to the MongoModuleStore (data, children, and metadata)
     """
-    def __init__(self, data, children, metadata):
+    def __init__(self, data, parent, children, metadata):
         super(MongoKeyValueStore, self).__init__()
         if not isinstance(data, dict):
             self._data = {'data': data}
         else:
             self._data = data
+        self._parent = parent
         self._children = children
         self._metadata = metadata
 
@@ -106,7 +107,7 @@ class MongoKeyValueStore(InheritanceKeyValueStore):
         if key.scope == Scope.children:
             return self._children
         elif key.scope == Scope.parent:
-            return None
+            return self._parent
         elif key.scope == Scope.settings:
             return self._metadata[key.field_name]
         elif key.scope == Scope.content:
@@ -216,15 +217,28 @@ class CachingDescriptorSystem(MakoDescriptorSystem, EditInfoRuntimeMixin):
                     self._convert_reference_to_key(childloc)
                     for childloc in definition.get('children', [])
                 ]
+
+                parent = None
+                if self.cached_metadata is not None:
+                    # fish the parent out of here if it's available
+                    parent_url = self.cached_metadata.get(unicode(location), {}).pop('parent', None)
+                    if parent_url:
+                        parent = BlockUsageLocator._from_deprecated_string(parent_url)
+                if not parent and category != 'course':
+                    # try looking it up just-in-time (but not if we're working with a root node (course).
+                    parent = self.modulestore.get_parent_location(as_published(location))
+
                 data = definition.get('data', {})
                 if isinstance(data, basestring):
                     data = {'data': data}
+
                 mixed_class = self.mixologist.mix(class_)
                 if data:  # empty or None means no work
                     data = self._convert_reference_fields_to_keys(mixed_class, location.course_key, data)
                 metadata = self._convert_reference_fields_to_keys(mixed_class, location.course_key, metadata)
                 kvs = MongoKeyValueStore(
                     data,
+                    parent,
                     children,
                     metadata,
                 )
@@ -634,6 +648,7 @@ class MongoModuleStore(ModuleStoreDraftAndPublished, ModuleStoreWriteBase, Mongo
                 else:
                     # this is likely a leaf node, so let's record what metadata we need to inherit
                     metadata_to_inherit[child] = my_metadata
+                metadata_to_inherit[child]['parent'] = url
 
         if root is not None:
             _compute_inherited_metadata(root)
@@ -1454,6 +1469,7 @@ class MongoModuleStore(ModuleStoreDraftAndPublished, ModuleStoreWriteBase, Mongo
         """
         kvs = MongoKeyValueStore(
             definition_data,
+            None,
             [],
             metadata,
         )
