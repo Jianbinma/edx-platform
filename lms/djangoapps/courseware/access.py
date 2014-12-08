@@ -265,6 +265,66 @@ def _has_access_error_desc(user, action, descriptor, course_key):
     return _dispatch(checkers, action, user, descriptor)
 
 
+def _enforce_group_access(descriptor, user, course_key):
+    """
+    This function returns a boolean indicating whether or not `user` has
+    sufficient group memberships to "load" a block (the `descriptor`)
+    """
+    if len(descriptor.user_partitions) == 0:
+        # short circuit the process, since there are no defined user partitions
+        return True
+
+    # use merged_group_access which takes group access on the block's
+    # parents / ancestors into account
+    merged_access = descriptor.merged_group_access
+    # check for False in merged_access, which indicates that at least one
+    # partition's group list excludes all students.
+    if False in merged_access.values():
+        return False
+
+    # resolve the partition IDs in group_access to actual
+    # partition objects, skipping those which cannot be found or which
+    # contain empty group directives.
+    partitions = filter(
+        None,
+        [
+            descriptor._get_user_partition(partition_id)
+            for partition_id, group_ids in merged_access.items()
+            if group_ids is not None
+        ]
+    )
+
+    # next resolve the group IDs specified within each partition,
+    # skipping those which cannot be found
+    partition_groups = []
+    for partition in partitions:
+        groups = filter(
+            None,
+            [
+                partition.get_group(group_id)
+                for group_id in merged_access[partition.id]
+            ]
+        )
+        if groups:
+            partition_groups.append((partition, groups))
+
+    # look up the user's group for each partition
+    user_groups = {}
+    for partition, groups in partition_groups:
+        user_groups[partition.id] = partition.scheme.get_group_for_user(
+            course_key,
+            user,
+            partition,
+        )
+
+    # finally: check that the user has a satisfactory group assignment
+    # for each partition.
+    if not all(
+        [user_groups.get(partition.id) in groups for partition, groups in partition_groups]
+    ):
+        return False
+
+
 def _has_access_descriptor(user, action, descriptor, course_key=None):
     """
     Check if user has access to this descriptor.
@@ -285,6 +345,10 @@ def _has_access_descriptor(user, action, descriptor, course_key=None):
         don't have to hit the enrollments table on every module load.
         """
         if descriptor.visible_to_staff_only and not _has_staff_access_to_descriptor(user, descriptor, course_key):
+            return False
+
+        # enforce group access:
+        if _enforce_group_access(descriptor, user, course_key) is False:
             return False
 
         # If start dates are off, can always load

@@ -27,7 +27,19 @@ class MemoryUserPartitionScheme(object):
         """
         return self.current_group.get(user.id, {}).get(user_partition.id)
 
+def resolve_attrs(test_method):
+    """
+    Helper function used with ddt.  It allows passing strings to test methods
+    via @ddt.data, which are the names of instance attributes on `self`, and
+    replaces them with the resolved values of those attributes in the method
+    call.
+    """
+    def _wrapper(self, *args):
+        new_args = [getattr(self, arg) for arg in args]
+        return test_method(self, *new_args)
+    return _wrapper
 
+@ddt.ddt
 class GroupAccessTestCase(ModuleStoreTestCase):
     """
     Tests to ensure that has_access() correctly enforces the visibility
@@ -99,8 +111,23 @@ class GroupAccessTestCase(ModuleStoreTestCase):
 
         self.gray_mouse = UserFactory()  # student in no group
 
+    # avoid repeatedly declaring the same sequence for ddt in all the test cases.
+    PARENT_CHILD_PAIRS = (
+        ('chapter', 'chapter'),
+        ('chapter', 'section'),
+        ('chapter', 'vertical'),
+        ('chapter', 'component'),
+        ('section', 'section'),
+        ('section', 'vertical'),
+        ('section', 'component'),
+        ('vertical', 'vertical'),
+        ('vertical', 'component'),
+    )
+
     def tearDown(self):
         """
+        Clear out the stevedore extension points on UserPartition to avoid
+        side-effects in other tests.
         """
         UserPartition.scheme_extensions = None
 
@@ -113,317 +140,165 @@ class GroupAccessTestCase(ModuleStoreTestCase):
             is_accessible
         )
 
-class SingleBlockTestMixin(object):
+    # NOTE: in all the tests that follow, `block_specified` and
+    # `block_accessed` designate the place where group_access rules are
+    # specified, and where access is being checked in the test, respectively.
 
-    def test_has_access_single_partition_single_group(self):
+    @ddt.data(*PARENT_CHILD_PAIRS)
+    @ddt.unpack
+    @resolve_attrs
+    def test_has_access_single_partition_single_group(self, block_specified, block_accessed):
         """
         Access checks are correctly enforced on the block when a single group
         is specified for a single partition.
         """
         self.set_group_access(
-            self.block,
+            block_specified,
             {self.animal_partition.id: [self.cat_group.id]},
         )
-        self.check_access(self.red_cat, self.block, True)
-        self.check_access(self.blue_dog, self.block, False)
-        self.check_access(self.gray_mouse, self.block, False)
+        self.check_access(self.red_cat, block_accessed, True)
+        self.check_access(self.blue_dog, block_accessed, False)
+        self.check_access(self.gray_mouse, block_accessed, False)
 
-    def test_has_access_single_partition_two_groups(self):
+    @ddt.data(*PARENT_CHILD_PAIRS)
+    @ddt.unpack
+    @resolve_attrs
+    def test_has_access_single_partition_two_groups(self, block_specified, block_accessed):
         """
         Access checks are correctly enforced on the block when multiple groups
         are specified for a single partition.
         """
         self.set_group_access(
-            self.block,
+            block_specified,
             {self.animal_partition.id: [self.cat_group.id, self.dog_group.id]},
         )
-        self.check_access(self.red_cat, self.block, True)
-        self.check_access(self.blue_dog, self.block, True)
-        self.check_access(self.gray_mouse, self.block, False)
+        self.check_access(self.red_cat, block_accessed, True)
+        self.check_access(self.blue_dog, block_accessed, True)
+        self.check_access(self.gray_mouse, block_accessed, False)
 
-    def test_has_access_single_empty_partition(self):
+    @ddt.data(*PARENT_CHILD_PAIRS)
+    @ddt.unpack
+    @resolve_attrs
+    def test_has_access_single_empty_partition(self, block_specified, block_accessed):
         """
         No group access checks are enforced on the block when group_access
         declares a partition but does not specify any groups.
         """
-        self.set_group_access(self.block, {self.animal_partition.id: []})
-        self.check_access(self.red_cat, self.block, True)
-        self.check_access(self.blue_dog, self.block, True)
-        self.check_access(self.gray_mouse, self.block, True)
+        self.set_group_access(block_specified, {self.animal_partition.id: []})
+        self.check_access(self.red_cat, block_accessed, True)
+        self.check_access(self.blue_dog, block_accessed, True)
+        self.check_access(self.gray_mouse, block_accessed, True)
 
-    def test_has_access_empty_dict(self):
+    @ddt.data(*PARENT_CHILD_PAIRS)
+    @ddt.unpack
+    @resolve_attrs
+    def test_has_access_empty_dict(self, block_specified, block_accessed):
         """
         No group access checks are enforced on the block when group_access is an
         empty dictionary.
         """
-        self.set_group_access(self.block, {})
-        self.check_access(self.red_cat, self.block, True)
-        self.check_access(self.blue_dog, self.block, True)
-        self.check_access(self.gray_mouse, self.block, True)
+        self.set_group_access(block_specified, {})
+        self.check_access(self.red_cat, block_accessed, True)
+        self.check_access(self.blue_dog, block_accessed, True)
+        self.check_access(self.gray_mouse, block_accessed, True)
 
-    def test_has_access_none(self):
+    @ddt.data(*PARENT_CHILD_PAIRS)
+    @ddt.unpack
+    @resolve_attrs
+    def test_has_access_none(self, block_specified, block_accessed):
         """
         No group access checks are enforced on the block when group_access is None.
         """
-        self.set_group_access(self.block, None)
-        self.check_access(self.red_cat, self.block, True)
-        self.check_access(self.blue_dog, self.block, True)
-        self.check_access(self.gray_mouse, self.block, True)
+        self.set_group_access(block_specified, None)
+        self.check_access(self.red_cat, block_accessed, True)
+        self.check_access(self.blue_dog, block_accessed, True)
+        self.check_access(self.gray_mouse, block_accessed, True)
 
-    def test_has_access_single_partition_group_none(self):
+    @ddt.data(*PARENT_CHILD_PAIRS)
+    @ddt.unpack
+    @resolve_attrs
+    def test_has_access_single_partition_group_none(self, block_specified, block_accessed):
         """
         No group access checks are enforced on the block when group_access
         specifies a partition but its value is None.
         """
-        self.set_group_access(self.block, {self.animal_partition.id: None})
-        self.check_access(self.red_cat, self.block, True)
-        self.check_access(self.blue_dog, self.block, True)
-        self.check_access(self.gray_mouse, self.block, True)
+        self.set_group_access(block_specified, {self.animal_partition.id: None})
+        self.check_access(self.red_cat, block_accessed, True)
+        self.check_access(self.blue_dog, block_accessed, True)
+        self.check_access(self.gray_mouse, block_accessed, True)
 
-    def test_has_access_nonexistent_partition(self):
+    @ddt.data(*PARENT_CHILD_PAIRS)
+    @ddt.unpack
+    @resolve_attrs
+    def test_has_access_single_partition_group_empty_list(self, block_specified, block_accessed):
+        """
+        No group access checks are enforced on the block when group_access
+        specifies a partition but its value is an empty list.
+        """
+        self.set_group_access(block_specified, {self.animal_partition.id: []})
+        self.check_access(self.red_cat, block_accessed, True)
+        self.check_access(self.blue_dog, block_accessed, True)
+        self.check_access(self.gray_mouse, block_accessed, True)
+
+    @ddt.data(*PARENT_CHILD_PAIRS)
+    @ddt.unpack
+    @resolve_attrs
+    def test_has_access_nonexistent_partition(self, block_specified, block_accessed):
         """
         No group access checks are enforced on the block when group_access
         specifies a partition id that does not exist in course.user_partitions.
         """
-        self.set_group_access(self.block, {9: []})
-        self.check_access(self.red_cat, self.block, True)
-        self.check_access(self.blue_dog, self.block, True)
-        self.check_access(self.gray_mouse, self.block, True)
+        self.set_group_access(block_specified, {9: []})
+        self.check_access(self.red_cat, block_accessed, True)
+        self.check_access(self.blue_dog, block_accessed, True)
+        self.check_access(self.gray_mouse, block_accessed, True)
 
-    def test_has_access_nonexistent_group(self):
+    @ddt.data(*PARENT_CHILD_PAIRS)
+    @ddt.unpack
+    @resolve_attrs
+    def test_has_access_nonexistent_group(self, block_specified, block_accessed):
         """
         No group access checks are enforced on the block when group_access
         contains a group id that does not exist in its referenced partition.
         """
-        self.set_group_access(self.block, {self.animal_partition.id: [99]})
-        self.check_access(self.red_cat, self.block, True)
-        self.check_access(self.blue_dog, self.block, True)
-        self.check_access(self.gray_mouse, self.block, True)
+        self.set_group_access(block_specified, {self.animal_partition.id: [99]})
+        self.check_access(self.red_cat, block_accessed, True)
+        self.check_access(self.blue_dog, block_accessed, True)
+        self.check_access(self.gray_mouse, block_accessed, True)
 
-    def test_multiple_partitions(self):
+    @ddt.data(*PARENT_CHILD_PAIRS)
+    @ddt.unpack
+    @resolve_attrs
+    def test_multiple_partitions(self, block_specified, block_accessed):
         """
         Group access restrictions are correctly enforced when multiple partition
         / group rules are defined.
         """
         self.set_group_access(
-            self.block,
+            block_specified,
             {
                 self.animal_partition.id: [self.cat_group.id],
                 self.color_partition.id: [self.red_group.id],
             },
         )
-        self.check_access(self.red_cat, self.block, True)
-        self.check_access(self.blue_dog, self.block, False)
-        self.check_access(self.gray_mouse, self.block, False)
+        self.check_access(self.red_cat, block_accessed, True)
+        self.check_access(self.blue_dog, block_accessed, False)
+        self.check_access(self.gray_mouse, block_accessed, False)
 
-    def test_multiple_partitions_deny_access(self):
+    @ddt.data(*PARENT_CHILD_PAIRS)
+    @ddt.unpack
+    @resolve_attrs
+    def test_multiple_partitions_deny_access(self, block_specified, block_accessed):
         """
         Group access restrictions correctly deny access even when some (but not
         all) group_access rules are satisfied.
         """
         self.set_group_access(
-            self.block,
+            block_specified,
             {
                 self.animal_partition.id: [self.cat_group.id],
                 self.color_partition.id: [self.blue_group.id],
             },
         )
-        self.check_access(self.red_cat, self.block, False)
-        self.check_access(self.blue_dog, self.block, False)
-
-
-class ChapterGroupAccessTestCase(GroupAccessTestCase, SingleBlockTestMixin):
-
-    @property
-    def block(self): return self.chapter
-
-class SectionGroupAccessTestCase(GroupAccessTestCase, SingleBlockTestMixin):
-
-    @property
-    def block(self): return self.section
-
-class VerticalGroupAccessTestCase(GroupAccessTestCase, SingleBlockTestMixin):
-
-    @property
-    def block(self): return self.vertical
-
-class ComponentGroupAccessTestCase(GroupAccessTestCase, SingleBlockTestMixin):
-
-    @property
-    def block(self): return self.component
-
-
-class ParentChildBlockTestMixin(object):
-
-    def test_merged_groups(self):
-        """
-        """
-        # parent is accessible to dogs and cats
-        self.set_group_access(
-            self.parent_block,
-            {self.animal_partition.id: [self.cat_group.id, self.dog_group.id]},
-        )
-        # but child is accessible only to cats
-        self.set_group_access(
-            self.child_block,
-            {self.animal_partition.id: [self.cat_group.id]},
-        )
-
-        self.assertEqual(
-            self.parent_block.merged_group_access,
-            {self.animal_partition.id: [self.cat_group.id, self.dog_group.id]},
-        )
-        self.assertEqual(
-            self.child_block.merged_group_access,
-            {self.animal_partition.id: [self.cat_group.id]},
-        )
-
-        self.check_access(self.red_cat, self.parent_block, True)
-        self.check_access(self.blue_dog, self.parent_block, True)
-        self.check_access(self.red_cat, self.child_block, True)
-        self.check_access(self.blue_dog, self.child_block, False)
-
-    def test_merged_partitions(self):
-        """
-        """
-        # parent is accessible to dogs
-        self.set_group_access(
-            self.parent_block,
-            {self.animal_partition.id: [self.dog_group.id]},
-        )
-        # child is accessible to red
-        self.set_group_access(
-            self.child_block,
-            {self.color_partition.id: [self.red_group.id]},
-        )
-        self.assertEqual(
-            self.parent_block.merged_group_access,
-            {self.animal_partition.id: [self.dog_group.id]},
-        )
-        self.assertEqual(
-            self.child_block.merged_group_access,
-            {
-                self.animal_partition.id: [self.dog_group.id],
-                self.color_partition.id: [self.red_group.id],
-            },
-        )
-        self.check_access(self.red_cat, self.parent_block, False)
-        self.check_access(self.blue_dog, self.parent_block, True)
-        self.check_access(self.red_cat, self.child_block, False)
-        self.check_access(self.blue_dog, self.child_block, False)
-
-    def test_merged_disjoint(self):
-        """
-        """
-        # parent is accessible to dogs
-        self.set_group_access(
-            self.parent_block, {
-                self.animal_partition.id: [self.dog_group.id],
-            }
-        )
-        # child is accessible to cats
-        self.set_group_access(
-            self.child_block, {
-                self.animal_partition.id: [self.cat_group.id],
-            }
-        )
-        self.assertEqual(
-            self.parent_block.merged_group_access,
-            {self.animal_partition.id: [self.dog_group.id]},
-        )
-        self.assertEqual(
-            self.child_block.merged_group_access,
-            {self.animal_partition.id: False},
-        )
-
-        self.check_access(self.red_cat, self.parent_block, False)
-        self.check_access(self.blue_dog, self.parent_block, True)
-        self.check_access(self.red_cat, self.child_block, False)
-        self.check_access(self.blue_dog, self.child_block, False)
-
-    def test_staff_overrides_group_access(self):
-        """
-        Group access restrictions are waived for staff.
-        """
-        pass
-
-    def test_anonymous(self):
-        """
-        Group access restrictions are enforced even with anonymous users.
-        """
-        pass
-
-
-class ChapterParent(object):
-
-    @property
-    def parent_block(self): return self.chapter
-
-class SectionParent(object):
-
-    @property
-    def parent_block(self): return self.section
-
-class VerticalParent(object):
-
-    @property
-    def parent_block(self): return self.vertical
-
-class SectionChild(object):
-
-    @property
-    def child_block(self): return self.section
-
-class VerticalChild(object):
-
-    @property
-    def child_block(self): return self.vertical
-
-class ComponentChild(object):
-
-    @property
-    def child_block(self): return self.component
-
-
-class ChapterSectionGroupAccessTestCase(
-    GroupAccessTestCase,
-    ParentChildBlockTestMixin,
-    ChapterParent,
-    SectionChild,
-): pass
-
-class ChapterVerticalGroupAccessTestCase(
-    GroupAccessTestCase,
-    ParentChildBlockTestMixin,
-    ChapterParent,
-    VerticalChild,
-): pass
-
-class ChapterComponentGroupAccessTestCase(
-    GroupAccessTestCase,
-    ParentChildBlockTestMixin,
-    ChapterParent,
-    ComponentChild,
-): pass
-
-class SectionVerticalGroupAccessTestCase(
-    GroupAccessTestCase,
-    ParentChildBlockTestMixin,
-    SectionParent,
-    VerticalChild,
-): pass
-
-class SectionComponentGroupAccessTestCase(
-    GroupAccessTestCase,
-    ParentChildBlockTestMixin,
-    SectionParent,
-    ComponentChild,
-): pass
-
-class VerticalComponentAccessTestCase(
-    GroupAccessTestCase,
-    ParentChildBlockTestMixin,
-    VerticalParent,
-    ComponentChild,
-): pass
-
+        self.check_access(self.red_cat, block_accessed, False)
+        self.check_access(self.blue_dog, block_accessed, False)
