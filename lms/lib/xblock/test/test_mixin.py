@@ -1,6 +1,7 @@
 """
 Tests of the LMS XBlock Mixin
 """
+import ddt
 
 from xblock.validation import ValidationMessage
 from xmodule.modulestore.tests.factories import CourseFactory, ItemFactory
@@ -131,3 +132,107 @@ class XBlockGetParentTest(LmsXBlockMixinTestCase):
         self.assertEqual(self.subsection.get_parent().location, self.section.location)
         self.assertEqual(self.vertical.get_parent().location, self.subsection.location)
         self.assertEqual(self.video.get_parent().location, self.subsection.location)
+
+
+class renamed_tuple(tuple): pass
+def ddt_named(parent, child):
+    """
+    Helper to get more readable dynamically-generated test names from ddt.
+    """
+    t = renamed_tuple([parent, child])
+    setattr(t, '__name__', 'parent_{}_child_{}'.format(parent, child))
+    return t
+
+@ddt.ddt
+class XBlockMergedGroupAccessTest(LmsXBlockMixinTestCase):
+
+    PARTITION_1 = 1
+    PARTITION_1_GROUP_1 = 11
+    PARTITION_1_GROUP_2 = 12
+
+    PARTITION_2 = 2
+    PARTITION_2_GROUP_1 = 21
+    PARTITION_2_GROUP_2 = 22
+
+    PARENT_CHILD_PAIRS = (
+        ddt_named('section', 'subsection'),
+        ddt_named('section', 'vertical'),
+        ddt_named('section', 'video'),
+        ddt_named('subsection', 'vertical'),
+        ddt_named('subsection', 'video'),
+    )
+
+    def set_group_access(self, block, access_dict):
+        """
+        DRY helper.
+        """
+        block.group_access = access_dict
+        block.runtime.modulestore.update_item(block, 1)
+
+    @ddt.data(*PARENT_CHILD_PAIRS)
+    @ddt.unpack
+    def test_intersecting_groups(self, parent, child):
+        """
+        When merging group_access on a block, the resulting group IDs for each
+        partition is the intersection of the group IDs defined for that
+        partition across all ancestor blocks (including this one).
+        """
+        parent_block = getattr(self, parent)
+        child_block = getattr(self, child)
+
+        self.set_group_access(parent_block, {self.PARTITION_1: [self.PARTITION_1_GROUP_1, self.PARTITION_1_GROUP_2]})
+        self.set_group_access(child_block, {self.PARTITION_1: [self.PARTITION_1_GROUP_2]})
+
+        self.assertEqual(
+            parent_block.merged_group_access,
+            {self.PARTITION_1: [self.PARTITION_1_GROUP_1, self.PARTITION_1_GROUP_2]},
+        )
+        self.assertEqual(
+            child_block.merged_group_access,
+            {self.PARTITION_1: [self.PARTITION_1_GROUP_2]},
+        )
+
+    @ddt.data(*PARENT_CHILD_PAIRS)
+    @ddt.unpack
+    def test_disjoint_groups(self, parent, child):
+        """
+        When merging group_access on a block, if the intersection of group IDs
+        for a partition is empty, the merged value for that partition is False.
+        """
+        parent_block = getattr(self, parent)
+        child_block = getattr(self, child)
+
+        self.set_group_access(parent_block, {self.PARTITION_1: [self.PARTITION_1_GROUP_1]})
+        self.set_group_access(child_block, {self.PARTITION_1: [self.PARTITION_1_GROUP_2]})
+
+        self.assertEqual(
+            parent_block.merged_group_access,
+            {self.PARTITION_1: [self.PARTITION_1_GROUP_1]},
+        )
+        self.assertEqual(
+            child_block.merged_group_access,
+            {self.PARTITION_1: False},
+        )
+
+    @ddt.data(*PARENT_CHILD_PAIRS)
+    @ddt.unpack
+    def test_union_partitions(self, parent, child):
+        """
+        When merging group_access on a block, the result's keys (partitions)
+        are the union of all partitions specified across all ancestor blocks
+        (including this one).
+        """
+        parent_block = getattr(self, parent)
+        child_block = getattr(self, child)
+
+        self.set_group_access(parent_block, {self.PARTITION_1: [self.PARTITION_1_GROUP_1]})
+        self.set_group_access(child_block, {self.PARTITION_2: [self.PARTITION_1_GROUP_2]})
+
+        self.assertEqual(
+            parent_block.merged_group_access,
+            {self.PARTITION_1: [self.PARTITION_1_GROUP_1]},
+        )
+        self.assertEqual(
+            child_block.merged_group_access,
+            {self.PARTITION_1: [self.PARTITION_1_GROUP_1], self.PARTITION_2: [self.PARTITION_1_GROUP_2]},
+        )
