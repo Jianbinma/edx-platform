@@ -212,6 +212,7 @@ class ImportSystem(XMLParsingSystem, MakoDescriptorSystem):
             if descriptor.has_children:
                 for child in descriptor.get_children():
                     parent_tracker.add_parent(child.scope_ids.usage_id, descriptor.scope_ids.usage_id)
+                    child.parent = descriptor.location
 
             # After setting up the descriptor, save any changes that we have
             # made to attributes on the descriptor to the underlying KeyValueStore.
@@ -325,6 +326,7 @@ def create_block_from_xml(xml_data, system, id_generator):
     xblock = xblock_class.parse_xml(node, system, scope_ids, id_generator)
 
     _convert_reference_fields_to_keys(xblock)
+
 
     return xblock
 
