@@ -522,6 +522,7 @@ class MongoModuleStore(ModuleStoreDraftAndPublished, ModuleStoreWriteBase, Mongo
         self.fs_service = fs_service
 
         self._course_run_cache = {}
+        self._parent_location_cache = {}
 
     def close_connections(self):
         """
@@ -1423,10 +1424,13 @@ class MongoModuleStore(ModuleStoreDraftAndPublished, ModuleStoreWriteBase, Mongo
                         preferring DRAFT, if parent(s) exists,
                         else returns None
         '''
-        parent = self._get_raw_parent_location(location, revision)
-        if parent:
-            return as_published(parent)
-        return None
+        cache_key = (location, revision)
+        if cache_key not in self._parent_location_cache:
+            parent = self._get_raw_parent_location(location, revision)
+            if parent:
+                parent = as_published(parent)
+            self._parent_location_cache[cache_key] = parent
+        return self._parent_location_cache[cache_key]
 
     def get_modulestore_type(self, course_key=None):
         """
