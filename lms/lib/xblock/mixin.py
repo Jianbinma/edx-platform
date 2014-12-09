@@ -12,7 +12,7 @@ _ = lambda text: text
 
 
 class GroupAccessDict(Dict):
-    """Special List class for serializing the group_access field"""
+    """Special Dict class for serializing the group_access field"""
     def from_json(self, access_dict):
         if access_dict is not None:
             return {int(k): access_dict[k] for k in access_dict}
@@ -99,7 +99,7 @@ class LmsBlockMixin(XBlockMixin):
         if not parent:
             return self.group_access or {}
 
-        merged_access = parent.merged_group_access or {}
+        merged_access = parent.merged_group_access.copy()
         if self.group_access is not None:
             for partition_id, group_ids in self.group_access.items():
                 if group_ids:  # skip if the "local" group_access for this partition is None or empty.

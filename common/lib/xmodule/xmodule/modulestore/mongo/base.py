@@ -223,7 +223,7 @@ class CachingDescriptorSystem(MakoDescriptorSystem, EditInfoRuntimeMixin):
                     # fish the parent out of here if it's available
                     parent_url = self.cached_metadata.get(unicode(location), {}).pop('parent', None)
                     if parent_url:
-                        parent = BlockUsageLocator._from_deprecated_string(parent_url)
+                        parent = BlockUsageLocator.from_string(parent_url)
                 if not parent and category != 'course':
                     # try looking it up just-in-time (but not if we're working with a root node (course).
                     parent = self.modulestore.get_parent_location(as_published(location))
@@ -648,6 +648,11 @@ class MongoModuleStore(ModuleStoreDraftAndPublished, ModuleStoreWriteBase, Mongo
                 else:
                     # this is likely a leaf node, so let's record what metadata we need to inherit
                     metadata_to_inherit[child] = my_metadata
+                # WARNING: 'parent' is not part of inherited metadata, but
+                # we're piggybacking on this recursive traversal to grab
+                # and cache the child's parent, as a performance optimization.
+                # The 'parent' key will be popped out of the dictionary during
+                # CachingDescriptorSystem.load_item
                 metadata_to_inherit[child]['parent'] = url
 
         if root is not None:

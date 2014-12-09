@@ -3,7 +3,9 @@ Tests of the LMS XBlock Mixin
 """
 import ddt
 
+from opaque_keys.edx.locator import CourseLocator
 from xblock.validation import ValidationMessage
+from xmodule.modulestore import ModuleStoreEnum
 from xmodule.modulestore.tests.factories import CourseFactory, ItemFactory
 from xmodule.modulestore.tests.django_utils import ModuleStoreTestCase
 from xmodule.partitions.partitions import Group, UserPartition
@@ -124,15 +126,34 @@ class XBlockGroupAccessTest(LmsXBlockMixinTestCase):
         self.assertTrue(self.video.is_visible_to_group(self.user_partition, self.group2))
 
 
+@ddt.ddt
 class XBlockGetParentTest(LmsXBlockMixinTestCase):
 
-    def test_parents(self):
-        self.assertIsNone(self.course.get_parent())
-        self.assertEqual(self.section.get_parent().location, self.course.location)
-        self.assertEqual(self.subsection.get_parent().location, self.section.location)
-        self.assertEqual(self.vertical.get_parent().location, self.subsection.location)
-        self.assertEqual(self.video.get_parent().location, self.subsection.location)
+    @ddt.data(ModuleStoreEnum.Type.mongo, ModuleStoreEnum.Type.split)  # TODO (jsa) add xml after figuring out fixture
+    def test_parents(self, modulestore_type):
+        with self.store.default_store(modulestore_type):
 
+            # setting up our own local course tree here, since it needs to be
+            # created with the correct modulestore type.
+
+            if modulestore_type == 'xml':
+                # TODO (jsa) find out how to get to the toy xml course in here
+                course_key = CourseLocator.from_string('edX/toy/2012_Fall')
+            else:
+                course_key = self.create_toy_course('edX', 'toy', '2012_Fall')
+            course = self.store.get_course(course_key)
+
+            self.assertIsNone(course.get_parent())
+            def recurse(parent):
+                visited = []
+                for child in parent.get_children():
+                    self.assertEqual(parent.location, child.get_parent().location)
+                    visited.append(child)
+                    visited += recurse(child)
+                return visited
+
+            visited = recurse(course)
+            self.assertEqual(len(visited), 28)
 
 class renamed_tuple(tuple): pass
 def ddt_named(parent, child):
