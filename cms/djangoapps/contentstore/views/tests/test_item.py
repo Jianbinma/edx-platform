@@ -362,9 +362,12 @@ class TestDuplicateItem(ItemTest):
         """
         def duplicate_and_verify(source_usage_key, parent_usage_key):
             usage_key = self._duplicate_item(parent_usage_key, source_usage_key)
-            self.assertTrue(check_equality(source_usage_key, usage_key), "Duplicated item differs from original")
+            self.assertTrue(
+                check_equality(source_usage_key, usage_key, parent_usage_key),
+                "Duplicated item differs from original"
+            )
 
-        def check_equality(source_usage_key, duplicate_usage_key):
+        def check_equality(source_usage_key, duplicate_usage_key, parent_usage_key=None):
             original_item = self.get_item_from_modulestore(source_usage_key)
             duplicated_item = self.get_item_from_modulestore(duplicate_usage_key)
 
@@ -373,9 +376,25 @@ class TestDuplicateItem(ItemTest):
                 duplicated_item.location,
                 "Location of duplicate should be different from original"
             )
-            # Set the location and display name to be the same so we can make sure the rest of the duplicate is equal.
+
+            # Parent will only be equal for root of duplicated structure, in the case
+            # where an item is duplicated in-place.
+            if parent_usage_key and original_item.parent == parent_usage_key:
+                self.assertEqual(
+                    parent_usage_key, duplicated_item.parent,
+                    "Parent of duplicate should equal parent of source for root xblock when duplicated in-place"
+                )
+            else:
+                assertNotEqual(
+                    original_item.parent, duplicated_item.parent,
+                    "Parent duplicate should be different from source"
+                )
+
+            # Set the location, display name, and parent to be the same so we can make sure the rest of the
+            # duplicate is equal.
             duplicated_item.location = original_item.location
             duplicated_item.display_name = original_item.display_name
+            duplicated_item.parent = original_item.parent
 
             # Children will also be duplicated, so for the purposes of testing equality, we will set
             # the children to the original after recursively checking the children.
