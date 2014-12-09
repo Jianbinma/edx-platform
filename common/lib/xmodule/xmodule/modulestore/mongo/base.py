@@ -226,7 +226,12 @@ class CachingDescriptorSystem(MakoDescriptorSystem, EditInfoRuntimeMixin):
                         parent = BlockUsageLocator.from_string(parent_url)
                 if not parent and category != 'course':
                     # try looking it up just-in-time (but not if we're working with a root node (course).
-                    parent = self.modulestore.get_parent_location(as_published(location))
+                    parent = self.modulestore.get_parent_location(
+                        as_published(location),
+                        ModuleStoreEnum.RevisionOption.published_only
+                            if location.revision is None
+                            else ModuleStoreEnum.RevisionOption.draft_preferred
+                    )
 
                 data = definition.get('data', {})
                 if isinstance(data, basestring):
