@@ -288,7 +288,7 @@ def _enforce_group_access(descriptor, user, course_key):
     partitions = filter(
         None,
         [
-            descriptor._get_user_partition(partition_id)
+            descriptor._get_user_partition(partition_id)  # pylint: disable=protected-access
             for partition_id, group_ids in merged_access.items()
             if group_ids is not None
         ]

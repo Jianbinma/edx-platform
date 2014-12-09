@@ -1,3 +1,8 @@
+"""
+This module defines tests for courseware.access that are specific to group
+access control rules.
+"""
+
 import ddt
 from stevedore.extension import Extension, ExtensionManager
 
@@ -20,12 +25,17 @@ class MemoryUserPartitionScheme(object):
         self.current_group = {}
 
     def set_group_for_user(self, user, user_partition, group):
+        """
+        Link this user to this group in this partition, in memory.
+        """
         self.current_group.setdefault(user.id, {})[user_partition.id] = group
 
     def get_group_for_user(self, course_id, user, user_partition, track_function=None):  # pylint: disable=unused-argument
         """
+        Fetch the group to which this user is linked in this partition, or None.
         """
         return self.current_group.get(user.id, {}).get(user_partition.id)
+
 
 def resolve_attrs(test_method):
     """
@@ -34,10 +44,11 @@ def resolve_attrs(test_method):
     replaces them with the resolved values of those attributes in the method
     call.
     """
-    def _wrapper(self, *args):
+    def _wrapper(self, *args):  # pylint: disable=missing-docstring
         new_args = [getattr(self, arg) for arg in args]
         return test_method(self, *new_args)
     return _wrapper
+
 
 @ddt.ddt
 class GroupAccessTestCase(ModuleStoreTestCase):
@@ -45,6 +56,7 @@ class GroupAccessTestCase(ModuleStoreTestCase):
     Tests to ensure that has_access() correctly enforces the visibility
     restrictions specified in the `group_access` field of XBlocks.
     """
+    # pylint: disable=no-member
 
     def set_user_group(self, user, partition, group):
         """

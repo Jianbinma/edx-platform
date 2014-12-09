@@ -128,6 +128,10 @@ class XBlockGroupAccessTest(LmsXBlockMixinTestCase):
 
 @ddt.ddt
 class XBlockGetParentTest(LmsXBlockMixinTestCase):
+    """
+    Test that XBlock.get_parent returns correct results with each modulestore
+    backend.
+    """
 
     @ddt.data(ModuleStoreEnum.Type.mongo, ModuleStoreEnum.Type.split)  # TODO (jsa) add xml after figuring out fixture
     def test_parents(self, modulestore_type):
@@ -144,7 +148,12 @@ class XBlockGetParentTest(LmsXBlockMixinTestCase):
             course = self.store.get_course(course_key)
 
             self.assertIsNone(course.get_parent())
+
             def recurse(parent):
+                """
+                Descend the course tree and ensure the result of get_parent()
+                is the expected one.
+                """
                 visited = []
                 for child in parent.get_children():
                     self.assertEqual(parent.location, child.get_parent().location)
@@ -155,17 +164,30 @@ class XBlockGetParentTest(LmsXBlockMixinTestCase):
             visited = recurse(course)
             self.assertEqual(len(visited), 28)
 
-class renamed_tuple(tuple): pass
+
+class RenamedTuple(tuple):  # pylint: disable=incomplete-protocol
+    """
+    This class is only used to allow overriding __name__ on the tuples passed
+    through ddt, in order to have the generated test names make sense.
+    """
+    pass
+
+
 def ddt_named(parent, child):
     """
     Helper to get more readable dynamically-generated test names from ddt.
     """
-    t = renamed_tuple([parent, child])
-    setattr(t, '__name__', 'parent_{}_child_{}'.format(parent, child))
-    return t
+    args = RenamedTuple([parent, child])
+    setattr(args, '__name__', 'parent_{}_child_{}'.format(parent, child))
+    return args
+
 
 @ddt.ddt
 class XBlockMergedGroupAccessTest(LmsXBlockMixinTestCase):
+    """
+    Test that XBlock.merged_group_access is computed correctly according to
+    our access control rules.
+    """
 
     PARTITION_1 = 1
     PARTITION_1_GROUP_1 = 11
