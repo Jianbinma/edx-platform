@@ -8,9 +8,7 @@ from xblock.validation import ValidationMessage
 from xmodule.modulestore import ModuleStoreEnum
 from xmodule.modulestore.tests.factories import CourseFactory, ItemFactory
 from xmodule.modulestore.tests.django_utils import ModuleStoreTestCase
-from xmodule.modulestore.xml import XMLModuleStore
 from xmodule.partitions.partitions import Group, UserPartition
-from xmodule.tests import DATA_DIR
 
 
 class LmsXBlockMixinTestCase(ModuleStoreTestCase):
@@ -135,7 +133,7 @@ class XBlockGetParentTest(LmsXBlockMixinTestCase):
     backend.
     """
 
-    @ddt.data(ModuleStoreEnum.Type.mongo, ModuleStoreEnum.Type.split, ModuleStoreEnum.Type.xml)
+    @ddt.data(ModuleStoreEnum.Type.mongo, ModuleStoreEnum.Type.split)  # TODO (jsa) add xml after figuring out fixture
     def test_parents(self, modulestore_type):
         with self.store.default_store(modulestore_type):
 
@@ -143,12 +141,11 @@ class XBlockGetParentTest(LmsXBlockMixinTestCase):
             # created with the correct modulestore type.
 
             if modulestore_type == 'xml':
-                store = XMLModuleStore(DATA_DIR, course_dirs=['toy', 'simple'])
+                # TODO (jsa) find out how to get to the toy xml course in here
                 course_key = CourseLocator.from_string('edX/toy/2012_Fall')
-                course = store.get_course(course_key)
             else:
                 course_key = self.create_toy_course('edX', 'toy', '2012_Fall')
-                course = self.store.get_course(course_key)
+            course = self.store.get_course(course_key)
 
             self.assertIsNone(course.get_parent())
 
