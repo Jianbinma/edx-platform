@@ -379,13 +379,13 @@ class TestDuplicateItem(ItemTest):
 
             # Parent will only be equal for root of duplicated structure, in the case
             # where an item is duplicated in-place.
-            if parent_usage_key and original_item.parent == parent_usage_key:
+            if parent_usage_key and unicode(original_item.parent) == unicode(parent_usage_key):
                 self.assertEqual(
-                    parent_usage_key, duplicated_item.parent,
+                    unicode(parent_usage_key), unicode(duplicated_item.parent),
                     "Parent of duplicate should equal parent of source for root xblock when duplicated in-place"
                 )
             else:
-                assertNotEqual(
+                self.assertNotEqual(
                     original_item.parent, duplicated_item.parent,
                     "Parent duplicate should be different from source"
                 )
