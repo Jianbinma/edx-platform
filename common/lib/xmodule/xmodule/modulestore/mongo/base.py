@@ -750,6 +750,10 @@ class MongoModuleStore(ModuleStoreDraftAndPublished, ModuleStoreWriteBase, Mongo
         This will make a number of queries that is linear in the depth.
         """
 
+        parent_cache = None
+        if self.request_cache is not None:
+            parent_cache = self.request_cache.data.setdefault('parent_location', {})
+
         data = {}
         to_process = list(items)
         course_key = self.fill_in_run(course_key)
@@ -757,8 +761,12 @@ class MongoModuleStore(ModuleStoreDraftAndPublished, ModuleStoreWriteBase, Mongo
             children = []
             for item in to_process:
                 self._clean_item_data(item)
+                item_location = Location._from_deprecated_son(item['location'], course_key.run)
                 children.extend(item.get('definition', {}).get('children', []))
-                data[Location._from_deprecated_son(item['location'], course_key.run)] = item
+                data[item_location] = item
+            if parent_cache is not None:
+                for child in children:
+                    parent_cache[child] = unicode(item_location)
 
             if depth == 0:
                 break
@@ -1355,6 +1363,11 @@ class MongoModuleStore(ModuleStoreDraftAndPublished, ModuleStoreWriteBase, Mongo
         assert revision == ModuleStoreEnum.RevisionOption.published_only \
             or revision == ModuleStoreEnum.RevisionOption.draft_preferred
 
+        if self.request_cache is not None:
+            parent_cache = self.request_cache.data.get('parent_location', {})
+        if unicode(location) in parent_cache:
+            return Location.from_string(parent_cache[unicode(location)])
+
         # create a query with tag, org, course, and the children field set to the given location
         query = self._course_key_to_son(location.course_key)
         query['definition.children'] = unicode(location)
@@ -1364,14 +1377,15 @@ class MongoModuleStore(ModuleStoreDraftAndPublished, ModuleStoreWriteBase, Mongo
             query['_id.revision'] = MongoRevisionKey.published
 
         # query the collection, sorting by DRAFT first
-        parents = self.collection.find(query, {'_id': True}, sort=[SORT_REVISION_FAVOR_DRAFT])
-
-        if parents.count() == 0:
+        parents = list(
+            self.collection.find(query, {'_id': True}, sort=[SORT_REVISION_FAVOR_DRAFT])
+        )
+        if len(parents) == 0:
             # no parents were found
             return None
 
         if revision == ModuleStoreEnum.RevisionOption.published_only:
-            if parents.count() > 1:
+            if len(parents) > 1:
                 non_orphan_parents = self._get_non_orphan_parents(location, parents, revision)
                 if len(non_orphan_parents) == 0:
                     # no actual parent found

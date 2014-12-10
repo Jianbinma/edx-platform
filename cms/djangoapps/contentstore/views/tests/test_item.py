@@ -100,9 +100,9 @@ class GetItemTest(ItemTest):
         return html, resources
 
     @ddt.data(
-        (1, 21, 23, 35, 37),
-        (2, 22, 24, 38, 39),
-        (3, 23, 25, 41, 41),
+        (1, 19, 19, 25, 25),
+        (2, 20, 20, 28, 27),
+        (3, 21, 21, 31, 29),
     )
     @ddt.unpack
     def test_get_query_count(self, branching_factor, chapter_queries, section_queries, unit_queries, problem_queries):
