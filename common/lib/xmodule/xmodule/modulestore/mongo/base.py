@@ -769,10 +769,10 @@ class MongoModuleStore(ModuleStoreDraftAndPublished, ModuleStoreWriteBase, Mongo
                 self._clean_item_data(item)
                 item_location = Location._from_deprecated_son(item['location'], course_key.run)
                 children.extend(item.get('definition', {}).get('children', []))
+                if parent_cache is not None:
+                    for child in item.get('definition', {}).get('children', []):
+                        parent_cache[child] = unicode(as_published(item_location))
                 data[item_location] = item
-            if parent_cache is not None:
-                for child in children:
-                    parent_cache[child] = unicode(item_location)
 
             if depth == 0:
                 break
