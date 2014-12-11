@@ -1400,7 +1400,7 @@ class MongoModuleStore(ModuleStoreDraftAndPublished, ModuleStoreWriteBase, Mongo
                 if len(non_orphan_parents) > 1:
                     # should never have multiple PUBLISHED parents
                     raise ReferentialIntegrityError(
-                        u"{} parents claim {}".format(parents.count(), location)
+                        u"{} parents claim {}".format(len(parents), location)
                     )
                 else:
                     return non_orphan_parents[0]
