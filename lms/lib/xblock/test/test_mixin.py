@@ -2,8 +2,8 @@
 Tests of the LMS XBlock Mixin
 """
 import ddt
+from django.conf import settings
 
-from opaque_keys.edx.locator import CourseLocator
 from xblock.validation import ValidationMessage
 from xmodule.modulestore import ModuleStoreEnum
 from xmodule.modulestore.tests.factories import CourseFactory, ItemFactory
@@ -16,7 +16,6 @@ class LmsXBlockMixinTestCase(ModuleStoreTestCase):
     Base class for XBlock mixin tests cases. A simple course with a single user partition is created
     in setUp for all subclasses to use.
     """
-
     def build_course(self):
         self.user_partition = UserPartition(
             0,
@@ -137,20 +136,23 @@ class XBlockGetParentTest(LmsXBlockMixinTestCase):
     Test that XBlock.get_parent returns correct results with each modulestore
     backend.
     """
+    def _pre_setup(self):
+        # load the one xml course into the xml store
+        settings.MODULESTORE['default']['OPTIONS']['mappings']['edX/toy/2012_Fall'] = ModuleStoreEnum.Type.xml
+        super(XBlockGetParentTest, self)._pre_setup()
 
-    @ddt.data(ModuleStoreEnum.Type.mongo, ModuleStoreEnum.Type.split)  # TODO (jsa) add xml after figuring out fixture
+    @ddt.data(ModuleStoreEnum.Type.mongo, ModuleStoreEnum.Type.split, ModuleStoreEnum.Type.xml)
     def test_parents(self, modulestore_type):
         with self.store.default_store(modulestore_type):
-            self.build_course()
 
             # setting up our own local course tree here, since it needs to be
             # created with the correct modulestore type.
 
             if modulestore_type == 'xml':
                 # TODO (jsa) find out how to get to the toy xml course in here
-                course_key = CourseLocator.from_string('edX/toy/2012_Fall')
+                course_key = self.store.make_course_key('edX', 'toy', '2012_Fall')
             else:
-                course_key = self.create_toy_course('edX', 'toy', '2012_Fall')
+                course_key = self.create_toy_course('edX', 'toy', '2012_Fall_copy')
             course = self.store.get_course(course_key)
 
             self.assertIsNone(course.get_parent())
