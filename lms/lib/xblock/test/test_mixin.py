@@ -17,8 +17,7 @@ class LmsXBlockMixinTestCase(ModuleStoreTestCase):
     in setUp for all subclasses to use.
     """
 
-    def setUp(self):
-        super(LmsXBlockMixinTestCase, self).setUp()
+    def build_course(self):
         self.user_partition = UserPartition(
             0,
             'first_partition',
@@ -34,13 +33,16 @@ class LmsXBlockMixinTestCase(ModuleStoreTestCase):
         self.section = ItemFactory.create(parent=self.course, category='chapter', display_name='Test Section')
         self.subsection = ItemFactory.create(parent=self.section, category='sequential', display_name='Test Subsection')
         self.vertical = ItemFactory.create(parent=self.subsection, category='vertical', display_name='Test Unit')
-        self.video = ItemFactory.create(parent=self.subsection, category='video', display_name='Test Video')
+        self.video = ItemFactory.create(parent=self.vertical, category='video', display_name='Test Video 1')
 
 
 class XBlockValidationTest(LmsXBlockMixinTestCase):
     """
     Unit tests for XBlock validation
     """
+    def setUp(self):
+        super(LmsXBlockMixinTestCase, self).setUp()
+        self.build_course()
 
     def verify_validation_message(self, message, expected_message, expected_message_type):
         """
@@ -95,6 +97,9 @@ class XBlockGroupAccessTest(LmsXBlockMixinTestCase):
     """
     Unit tests for XBlock group access.
     """
+    def setUp(self):
+        super(LmsXBlockMixinTestCase, self).setUp()
+        self.build_course()
 
     def test_is_visible_to_group(self):
         """
@@ -136,6 +141,7 @@ class XBlockGetParentTest(LmsXBlockMixinTestCase):
     @ddt.data(ModuleStoreEnum.Type.mongo, ModuleStoreEnum.Type.split)  # TODO (jsa) add xml after figuring out fixture
     def test_parents(self, modulestore_type):
         with self.store.default_store(modulestore_type):
+            self.build_course()
 
             # setting up our own local course tree here, since it needs to be
             # created with the correct modulestore type.
@@ -164,6 +170,44 @@ class XBlockGetParentTest(LmsXBlockMixinTestCase):
             visited = recurse(course)
             self.assertEqual(len(visited), 28)
 
+    @ddt.data(ModuleStoreEnum.Type.mongo, ModuleStoreEnum.Type.split)
+    def test_parents_draft_content(self, modulestore_type):
+        # move the video to the new vertical
+        with self.store.default_store(modulestore_type):
+            self.build_course()
+            new_vertical = ItemFactory.create(parent=self.subsection, category='vertical', display_name='New Test Unit')
+            child_to_move_location = self.video.location.for_branch(None)
+            new_parent_location = new_vertical.location.for_branch(None)
+            old_parent_location = self.vertical.location.for_branch(None)
+
+            with self.store.branch_setting(ModuleStoreEnum.Branch.draft_preferred):
+                self.assertIsNone(self.course.get_parent())
+
+                with self.store.bulk_operations(self.course.id):
+                    user_id = ModuleStoreEnum.UserID.test
+
+                    old_parent = self.store.get_item(old_parent_location)
+                    old_parent.children.remove(child_to_move_location)
+                    self.store.update_item(old_parent, user_id)
+
+                    new_parent = self.store.get_item(new_parent_location)
+                    new_parent.children.append(child_to_move_location)
+                    self.store.update_item(new_parent, user_id)
+
+                    # re-fetch video from draft store
+                    video = self.store.get_item(child_to_move_location)
+
+                    self.assertEqual(
+                        new_parent_location,
+                        video.get_parent().location
+                    )
+            with self.store.branch_setting(ModuleStoreEnum.Branch.published_only):
+                # re-fetch video from published store
+                video = self.store.get_item(child_to_move_location)
+                self.assertEqual(
+                    old_parent_location,
+                    video.get_parent().location.for_branch(None)
+                )
 
 class RenamedTuple(tuple):  # pylint: disable=incomplete-protocol
     """
@@ -204,6 +248,10 @@ class XBlockMergedGroupAccessTest(LmsXBlockMixinTestCase):
         ddt_named('subsection', 'vertical'),
         ddt_named('subsection', 'video'),
     )
+
+    def setUp(self):
+        super(LmsXBlockMixinTestCase, self).setUp()
+        self.build_course()
 
     def set_group_access(self, block, access_dict):
         """

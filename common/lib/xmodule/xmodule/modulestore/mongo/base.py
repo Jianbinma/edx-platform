@@ -221,7 +221,10 @@ class CachingDescriptorSystem(MakoDescriptorSystem, EditInfoRuntimeMixin):
                 parent = None
                 if self.cached_metadata is not None:
                     # fish the parent out of here if it's available
-                    parent_url = self.cached_metadata.get(unicode(location), {}).pop('parent', None)
+                    parent_url = self.cached_metadata.get(unicode(location), {}).get('parent', {}).get(
+                        ModuleStoreEnum.Branch.published_only if location.revision is None
+                        else ModuleStoreEnum.Branch.draft_preferred
+                    )
                     if parent_url:
                         parent = BlockUsageLocator.from_string(parent_url)
                 if not parent and category != 'course':
@@ -652,13 +655,13 @@ class MongoModuleStore(ModuleStoreDraftAndPublished, ModuleStoreWriteBase, Mongo
                     _compute_inherited_metadata(child)
                 else:
                     # this is likely a leaf node, so let's record what metadata we need to inherit
-                    metadata_to_inherit[child] = my_metadata
+                    metadata_to_inherit[child] = my_metadata.copy()
                 # WARNING: 'parent' is not part of inherited metadata, but
                 # we're piggybacking on this recursive traversal to grab
                 # and cache the child's parent, as a performance optimization.
                 # The 'parent' key will be popped out of the dictionary during
                 # CachingDescriptorSystem.load_item
-                metadata_to_inherit[child]['parent'] = url
+                metadata_to_inherit[child].setdefault('parent', {})[self.get_branch_setting()] = url
 
         if root is not None:
             _compute_inherited_metadata(root)
@@ -1274,6 +1277,21 @@ class MongoModuleStore(ModuleStoreDraftAndPublished, ModuleStoreWriteBase, Mongo
             if xblock.has_children:
                 children = self._serialize_scope(xblock, Scope.children)
                 payload.update({'definition.children': children['children']})
+                if self.request_cache is not None:
+                    parent_cache = self.request_cache.data.get(
+                        'parent-location-{}'.format(self.get_branch_setting()),
+                        {},
+                    )
+                    cache_location = unicode(as_published(xblock.location))
+                    # Remove all old pointers to me, then add my current children back
+                    to_be_deleted = [
+                        key for key, value in parent_cache.iteritems() if value == cache_location
+                    ]
+                    for child in to_be_deleted:
+                        del parent_cache[child]
+                    for child in xblock.children:
+                        parent_cache[unicode(child)] = cache_location
+
             self._update_single_item(xblock.scope_ids.usage_id, payload, allow_not_found=allow_not_found)
 
             # update subtree edited info for ancestors
