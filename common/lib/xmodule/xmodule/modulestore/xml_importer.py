@@ -423,9 +423,13 @@ def _import_module_and_update_references(
 
     fields = {}
     for field_name, field in module.fields.iteritems():
-        if field.is_set_on(module):
+        if field.scope != Scope.parent and field.is_set_on(module):
             if isinstance(field, Reference):
-                fields[field_name] = _convert_reference_fields_to_new_namespace(field.read_from(module))
+                value = field.read_from(module)
+                if value is None:
+                    fields[field_name] = None
+                else:
+                    fields[field_name] = _convert_reference_fields_to_new_namespace(field.read_from(module))
             elif isinstance(field, ReferenceList):
                 references = field.read_from(module)
                 fields[field_name] = [_convert_reference_fields_to_new_namespace(reference) for reference in references]

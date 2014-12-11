@@ -284,7 +284,9 @@ def _convert_reference_fields_to_keys(xblock):  # pylint: disable=invalid-name
     for field in xblock.fields.itervalues():
         if field.is_set_on(xblock):
             field_value = getattr(xblock, field.name)
-            if isinstance(field, Reference):
+            if field_value is None:
+                setattr(xblock, field.name, None)
+            elif isinstance(field, Reference):
                 setattr(xblock, field.name, _make_usage_key(course_key, field_value))
             elif isinstance(field, ReferenceList):
                 setattr(xblock, field.name, [_make_usage_key(course_key, ele) for ele in field_value])
