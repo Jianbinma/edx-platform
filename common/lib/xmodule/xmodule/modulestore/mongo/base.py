@@ -1363,10 +1363,10 @@ class MongoModuleStore(ModuleStoreDraftAndPublished, ModuleStoreWriteBase, Mongo
         assert revision == ModuleStoreEnum.RevisionOption.published_only \
             or revision == ModuleStoreEnum.RevisionOption.draft_preferred
 
-        if self.request_cache is not None:
+        if self.request_cache is not None and revision==ModuleStoreEnum.RevisionOption.published_only:
             parent_cache = self.request_cache.data.get('parent_location', {})
-        if unicode(location) in parent_cache:
-            return Location.from_string(parent_cache[unicode(location)])
+            if unicode(location) in parent_cache:
+                return Location.from_string(parent_cache[unicode(location)])
 
         # create a query with tag, org, course, and the children field set to the given location
         query = self._course_key_to_son(location.course_key)
