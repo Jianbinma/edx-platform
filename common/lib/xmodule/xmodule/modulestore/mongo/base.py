@@ -752,7 +752,10 @@ class MongoModuleStore(ModuleStoreDraftAndPublished, ModuleStoreWriteBase, Mongo
 
         parent_cache = None
         if self.request_cache is not None:
-            parent_cache = self.request_cache.data.setdefault('parent_location', {})
+            parent_cache = self.request_cache.data.setdefault(
+                'parent-location-{}'.format(self.get_branch_setting()),
+                {},
+            )
 
         data = {}
         to_process = list(items)
@@ -1363,8 +1366,11 @@ class MongoModuleStore(ModuleStoreDraftAndPublished, ModuleStoreWriteBase, Mongo
         assert revision == ModuleStoreEnum.RevisionOption.published_only \
             or revision == ModuleStoreEnum.RevisionOption.draft_preferred
 
-        if self.request_cache is not None and revision==ModuleStoreEnum.RevisionOption.published_only:
-            parent_cache = self.request_cache.data.get('parent_location', {})
+        if self.request_cache is not None:
+            parent_cache = self.request_cache.data.get(
+                'parent-location-{}'.format(revision),
+                {},
+            )
             if unicode(location) in parent_cache:
                 return Location.from_string(parent_cache[unicode(location)])
 
