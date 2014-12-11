@@ -1368,7 +1368,7 @@ class MongoModuleStore(ModuleStoreDraftAndPublished, ModuleStoreWriteBase, Mongo
 
         if self.request_cache is not None:
             parent_cache = self.request_cache.data.get(
-                'parent-location-{}'.format(revision),
+                'parent-location-{}'.format(revision.replace('rev-opt-', '')),
                 {},
             )
             if unicode(location) in parent_cache:
