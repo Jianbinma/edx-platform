@@ -771,7 +771,7 @@ class MongoModuleStore(ModuleStoreDraftAndPublished, ModuleStoreWriteBase, Mongo
                 children.extend(item.get('definition', {}).get('children', []))
                 if parent_cache is not None:
                     for child in item.get('definition', {}).get('children', []):
-                        parent_cache[child] = unicode(as_published(item_location))
+                        parent_cache[child] = unicode(item_location)
                 data[item_location] = item
 
             if depth == 0:
@@ -1282,7 +1282,7 @@ class MongoModuleStore(ModuleStoreDraftAndPublished, ModuleStoreWriteBase, Mongo
                         'parent-location-{}'.format(self.get_branch_setting()),
                         {},
                     )
-                    cache_location = unicode(as_published(xblock.location))
+                    cache_location = unicode(xblock.location)
                     # Remove all old pointers to me, then add my current children back
                     to_be_deleted = [
                         key for key, value in parent_cache.iteritems() if value == cache_location
