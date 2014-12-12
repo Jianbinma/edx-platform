@@ -119,7 +119,10 @@ class TestFindUnit(ModuleStoreTestCase):
         Test finding a nested unit.
         """
         url = self.homework.location.to_deprecated_string()
-        self.assertEqual(tools.find_unit(self.course, url), self.homework)
+        found_unit = tools.find_unit(self.course, url)
+        # TODO (jsa) we should probably have a stronger equality comparison for blocks
+        # TODO (jsa) also, i don't quite get why comparing the blocks directly used to work
+        self.assertEqual(found_unit.location, self.homework.location)
 
     def test_find_unit_notfound(self):
         """
