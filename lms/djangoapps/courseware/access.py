@@ -320,9 +320,12 @@ def _enforce_group_access(descriptor, user, course_key):
     # finally: check that the user has a satisfactory group assignment
     # for each partition.
     if not all(
-        [user_groups.get(partition.id) in groups for partition, groups in partition_groups]
+        user_groups.get(partition.id) in groups for partition, groups in partition_groups
     ):
         return False
+
+    # all checks passed.
+    return True
 
 
 def _has_access_descriptor(user, action, descriptor, course_key=None):
@@ -347,8 +350,8 @@ def _has_access_descriptor(user, action, descriptor, course_key=None):
         if descriptor.visible_to_staff_only and not _has_staff_access_to_descriptor(user, descriptor, course_key):
             return False
 
-        # enforce group access:
-        if _enforce_group_access(descriptor, user, course_key) is False:
+        # enforce group access
+        if not _has_group_access(descriptor, user, course_key):
             return False
 
         # If start dates are off, can always load
