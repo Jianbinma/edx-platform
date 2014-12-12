@@ -773,7 +773,7 @@ class XMLModuleStore(ModuleStoreReadBase):
         course.  Needed for path_to_location().
         '''
         block = self.get_item(location, 0)
-        return self.get_item(block.parent)
+        return block.parent
 
     def get_modulestore_type(self, course_key=None):
         """
