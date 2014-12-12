@@ -199,9 +199,6 @@ class TestLTIModuleListing(ModuleStoreTestCase):
             "lti_1_1_result_service_xml_endpoint": self.expected_handler_url('grade_handler'),
             "lti_2_0_result_service_json_endpoint":
             self.expected_handler_url('lti_2_0_result_rest_handler') + "/user/{anon_user_id}",
-            # FIXME @jbau, there's nothing in the handler which tries to fetch drafts; so, this makes no sense
-            # to me [dhm]
-            # "display_name": self.lti_draft.display_name,
             "display_name": self.lti_published.display_name,
         }
         self.assertEqual([expected], json.loads(response.content))

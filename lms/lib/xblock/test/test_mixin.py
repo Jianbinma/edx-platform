@@ -17,6 +17,9 @@ class LmsXBlockMixinTestCase(ModuleStoreTestCase):
     in setUp for all subclasses to use.
     """
     def build_course(self):
+        """
+        Build up a course tree with a UserPartition.
+        """
         self.user_partition = UserPartition(
             0,
             'first_partition',
@@ -97,7 +100,7 @@ class XBlockGroupAccessTest(LmsXBlockMixinTestCase):
     Unit tests for XBlock group access.
     """
     def setUp(self):
-        super(LmsXBlockMixinTestCase, self).setUp()
+        super(XBlockGroupAccessTest, self).setUp()
         self.build_course()
 
     def test_is_visible_to_group(self):
@@ -211,6 +214,7 @@ class XBlockGetParentTest(LmsXBlockMixinTestCase):
                     video.get_parent().location.for_branch(None)
                 )
 
+
 class RenamedTuple(tuple):  # pylint: disable=incomplete-protocol
     """
     This class is only used to allow overriding __name__ on the tuples passed
@@ -252,7 +256,7 @@ class XBlockMergedGroupAccessTest(LmsXBlockMixinTestCase):
     )
 
     def setUp(self):
-        super(LmsXBlockMixinTestCase, self).setUp()
+        super(XBlockMergedGroupAccessTest, self).setUp()
         self.build_course()
 
     def set_group_access(self, block, access_dict):
