@@ -771,7 +771,7 @@ class MongoModuleStore(ModuleStoreDraftAndPublished, ModuleStoreWriteBase, Mongo
                 children.extend(item.get('definition', {}).get('children', []))
                 if parent_cache is not None:
                     for child in item.get('definition', {}).get('children', []):
-                        parent_cache[child] = unicode(item_location)
+                        parent_cache[child] = item_location
                 data[item_location] = item
 
             if depth == 0:
@@ -1282,7 +1282,7 @@ class MongoModuleStore(ModuleStoreDraftAndPublished, ModuleStoreWriteBase, Mongo
                         'parent-location-{}'.format(self.get_branch_setting()),
                         {},
                     )
-                    cache_location = unicode(xblock.location)
+                    cache_location = xblock.location
                     # Remove all old pointers to me, then add my current children back
                     to_be_deleted = [
                         key for key, value in parent_cache.iteritems() if value == cache_location
@@ -1384,13 +1384,14 @@ class MongoModuleStore(ModuleStoreDraftAndPublished, ModuleStoreWriteBase, Mongo
         assert revision == ModuleStoreEnum.RevisionOption.published_only \
             or revision == ModuleStoreEnum.RevisionOption.draft_preferred
 
+        parent_cache = None
         if self.request_cache is not None:
             parent_cache = self.request_cache.data.get(
                 'parent-location-{}'.format(revision.replace('rev-opt-', '')),
                 {},
             )
             if unicode(location) in parent_cache:
-                return Location.from_string(parent_cache[unicode(location)])
+                return parent_cache[unicode(location)]
 
         # create a query with tag, org, course, and the children field set to the given location
         query = self._course_key_to_son(location.course_key)
@@ -1400,20 +1401,25 @@ class MongoModuleStore(ModuleStoreDraftAndPublished, ModuleStoreWriteBase, Mongo
         if revision == ModuleStoreEnum.RevisionOption.published_only:
             query['_id.revision'] = MongoRevisionKey.published
 
+        def cache_and_return(parent_loc):
+            if parent_cache:
+                parent_cache[unicode(location)] = parent_loc
+            return parent_loc
+
         # query the collection, sorting by DRAFT first
         parents = list(
             self.collection.find(query, {'_id': True}, sort=[SORT_REVISION_FAVOR_DRAFT])
         )
         if len(parents) == 0:
             # no parents were found
-            return None
+            return cache_and_return(None)
 
         if revision == ModuleStoreEnum.RevisionOption.published_only:
             if len(parents) > 1:
                 non_orphan_parents = self._get_non_orphan_parents(location, parents, revision)
                 if len(non_orphan_parents) == 0:
                     # no actual parent found
-                    return None
+                    return cache_and_return(None)
 
                 if len(non_orphan_parents) > 1:
                     # should never have multiple PUBLISHED parents
@@ -1421,10 +1427,10 @@ class MongoModuleStore(ModuleStoreDraftAndPublished, ModuleStoreWriteBase, Mongo
                         u"{} parents claim {}".format(len(parents), location)
                     )
                 else:
-                    return non_orphan_parents[0]
+                    return cache_and_return(non_orphan_parents[0].replace(run=location.course_key.run))
             else:
                 # return the single PUBLISHED parent
-                return Location._from_deprecated_son(parents[0]['_id'], location.course_key.run)
+                return cache_and_return(Location._from_deprecated_son(parents[0]['_id'], location.course_key.run))
         else:
             # there could be 2 different parents if
             #   (1) the draft item was moved or
@@ -1440,11 +1446,11 @@ class MongoModuleStore(ModuleStoreDraftAndPublished, ModuleStoreWriteBase, Mongo
             # since we sorted by SORT_REVISION_FAVOR_DRAFT, the 0'th parent is the one we want
             if published_parents > 1:
                 non_orphan_parents = self._get_non_orphan_parents(location, all_parents, revision)
-                return non_orphan_parents[0]
+                return cache_and_return(non_orphan_parents[0].replace(run=location.course_key.run))
 
             found_id = all_parents[0]['_id']
             # don't disclose revision outside modulestore
-            return Location._from_deprecated_son(found_id, location.course_key.run)
+            return cache_and_return(Location._from_deprecated_son(found_id, location.course_key.run))
 
     def get_parent_location(self, location, revision=ModuleStoreEnum.RevisionOption.published_only, **kwargs):
         '''
@@ -1463,7 +1469,7 @@ class MongoModuleStore(ModuleStoreDraftAndPublished, ModuleStoreWriteBase, Mongo
         '''
         parent = self._get_raw_parent_location(location, revision)
         if parent:
-            return as_published(parent)
+            return parent
         return None
 
     def get_modulestore_type(self, course_key=None):
