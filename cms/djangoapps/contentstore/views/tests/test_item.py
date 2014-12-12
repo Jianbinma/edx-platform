@@ -100,9 +100,20 @@ class GetItemTest(ItemTest):
         return html, resources
 
     @ddt.data(
-        (1, 20, 21, 30, 31),
-        (2, 21, 22, 33, 33),
-        (3, 22, 23, 36, 35),
+        # chapter explanation:
+        # 1-3. get course, chapter, chapter's children,
+        # 4-7. chapter's published grandchildren, chapter's draft grandchildren, published & then draft greatgrand
+        # 8 compute chapter's parent
+        # 9 get chapter's parent
+        # 10-16. run queries 2-8 again
+        # 17-19. compute seq, vert, and problem's parents (odd since it's going down; so, it knows)
+        # 20-22. get course 3 times
+        # 23. get chapter
+        # 24. compute chapter's parent (course)
+        # 25. compute course's parent (None)
+        (1, 20, 20, 26, 26),
+        (2, 21, 21, 29, 28),
+        (3, 22, 22, 32, 30),
     )
     @ddt.unpack
     def test_get_query_count(self, branching_factor, chapter_queries, section_queries, unit_queries, problem_queries):
