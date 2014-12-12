@@ -255,28 +255,28 @@ class GroupAccessTestCase(ModuleStoreTestCase):
     @ddt.data(*PARENT_CHILD_PAIRS)
     @ddt.unpack
     @resolve_attrs
-    def test_has_access_nonexistent_partition(self, block_specified, block_accessed):
+    def test_has_access_nonexistent_nonempty_partition(self, block_specified, block_accessed):
         """
-        No group access checks are enforced on the block when group_access
-        specifies a partition id that does not exist in course.user_partitions.
+        Access will be denied to the block when group_access specifies a
+        nonempty partition that does not exist in course.user_partitions.
         """
-        self.set_group_access(block_specified, {9: []})
-        self.check_access(self.red_cat, block_accessed, True)
-        self.check_access(self.blue_dog, block_accessed, True)
-        self.check_access(self.gray_mouse, block_accessed, True)
+        self.set_group_access(block_specified, {9: [99]})
+        self.check_access(self.red_cat, block_accessed, False)
+        self.check_access(self.blue_dog, block_accessed, False)
+        self.check_access(self.gray_mouse, block_accessed, False)
 
     @ddt.data(*PARENT_CHILD_PAIRS)
     @ddt.unpack
     @resolve_attrs
     def test_has_access_nonexistent_group(self, block_specified, block_accessed):
         """
-        No group access checks are enforced on the block when group_access
-        contains a group id that does not exist in its referenced partition.
+        Access will be denied to the block when group_access contains a group
+        id that does not exist in its referenced partition.
         """
         self.set_group_access(block_specified, {self.animal_partition.id: [99]})
-        self.check_access(self.red_cat, block_accessed, True)
-        self.check_access(self.blue_dog, block_accessed, True)
-        self.check_access(self.gray_mouse, block_accessed, True)
+        self.check_access(self.red_cat, block_accessed, False)
+        self.check_access(self.blue_dog, block_accessed, False)
+        self.check_access(self.gray_mouse, block_accessed, False)
 
     @ddt.data(*PARENT_CHILD_PAIRS)
     @ddt.unpack

@@ -6,6 +6,7 @@ from lazy import lazy
 from xblock.fields import Boolean, Scope, String, XBlockMixin, Dict
 from xblock.validation import ValidationMessage
 from xmodule.modulestore.inheritance import UserPartitionList
+from xmodule.partitions.partitions import NoSuchUserPartitionError, NoSuchUserPartitionGroupError
 
 # Make '_' a no-op so we can scrape strings
 _ = lambda text: text
@@ -127,13 +128,14 @@ class LmsBlockMixin(XBlockMixin):
 
     def _get_user_partition(self, user_partition_id):
         """
-        Returns the user partition with the specified id, or None if there is no such partition.
+        Returns the user partition with the specified id.  Raises
+        `NoSuchUserPartitionError` if the lookup fails.
         """
         for user_partition in self.user_partitions:
             if user_partition.id == user_partition_id:
                 return user_partition
 
-        return None
+        raise NoSuchUserPartitionError("could not find a UserPartition with ID [{}]".format(user_partition_id))
 
     def is_visible_to_group(self, user_partition, group):
         """
@@ -158,8 +160,9 @@ class LmsBlockMixin(XBlockMixin):
         _ = self.runtime.service(self, "i18n").ugettext  # pylint: disable=redefined-outer-name
         validation = super(LmsBlockMixin, self).validate()
         for user_partition_id, group_ids in self.group_access.iteritems():
-            user_partition = self._get_user_partition(user_partition_id)
-            if not user_partition:
+            try:
+                user_partition = self._get_user_partition(user_partition_id)
+            except NoSuchUserPartitionError:
                 validation.add(
                     ValidationMessage(
                         ValidationMessage.ERROR,
@@ -168,8 +171,9 @@ class LmsBlockMixin(XBlockMixin):
                 )
             else:
                 for group_id in group_ids:
-                    group = user_partition.get_group(group_id)
-                    if not group:
+                    try:
+                        user_partition.get_group(group_id)
+                    except NoSuchUserPartitionGroupError:
                         validation.add(
                             ValidationMessage(
                                 ValidationMessage.ERROR,
