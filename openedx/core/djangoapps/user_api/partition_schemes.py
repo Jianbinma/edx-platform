@@ -5,7 +5,7 @@ Provides partition support to the user service.
 import random
 import api.course_tag as course_tag_api
 
-from xmodule.partitions.partitions import UserPartitionError
+from xmodule.partitions.partitions import UserPartitionError, NoSuchUserPartitionGroupError
 
 
 class RandomUserPartitionScheme(object):
@@ -22,7 +22,18 @@ class RandomUserPartitionScheme(object):
         """
         partition_key = cls._key_for_partition(user_partition)
         group_id = course_tag_api.get_course_tag(user, course_id, partition_key)
-        group = user_partition.get_group(int(group_id)) if not group_id is None else None
+
+        group = None
+        if group_id is not None:
+            # attempt to look up the presently assigned group
+            try:
+                group = user_partition.get_group(int(group_id))
+            except NoSuchUserPartitionGroupError:
+                # NOTE jsa: if this is a frequently-encountered case, I'm
+                # inclined not to log any warnings about it.  Otherwise we
+                # should definitely add some logging here.
+                pass
+
         if group is None:
             if not user_partition.groups:
                 raise UserPartitionError('Cannot assign user to an empty user partition')
