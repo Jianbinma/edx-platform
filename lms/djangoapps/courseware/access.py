@@ -289,7 +289,7 @@ def _has_group_access(descriptor, user, course_key):
     # if a referenced partition could not be found, access will be denied.
     try:
         partitions = [
-            descriptor._get_user_partition(partition_id)
+            descriptor._get_user_partition(partition_id)  # pylint:disable=protected-access
             for partition_id, group_ids in merged_access.items()
             if group_ids is not None
         ]

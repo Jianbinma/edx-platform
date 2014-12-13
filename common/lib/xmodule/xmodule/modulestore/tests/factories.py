@@ -209,16 +209,15 @@ class ItemFactory(XModuleFactory):
             # replace the display name with an optional parameter passed in from the caller
             if display_name is not None:
                 metadata['display_name'] = display_name
-            runtime = parent.runtime if parent else None
-            # TODO change to create_child if there's a parent
-            module = store.create_item(
+
+            module = store.create_child(
                 user_id,
-                location.course_key,
+                parent.location,
                 location.block_type,
                 block_id=location.block_id,
                 metadata=metadata,
                 definition_data=data,
-                runtime=runtime,
+                runtime=parent.runtime,
                 fields=kwargs,
             )
 

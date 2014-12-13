@@ -1400,7 +1400,7 @@ class MongoModuleStore(ModuleStoreDraftAndPublished, ModuleStoreWriteBase, Mongo
         if revision == ModuleStoreEnum.RevisionOption.published_only:
             query['_id.revision'] = MongoRevisionKey.published
 
-        def cache_and_return(parent_loc):
+        def cache_and_return(parent_loc):  # pylint:disable=missing-docstring
             if parent_cache:
                 parent_cache[unicode(location)] = parent_loc
             return parent_loc

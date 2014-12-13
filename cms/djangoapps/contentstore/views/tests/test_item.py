@@ -372,6 +372,7 @@ class TestDuplicateItem(ItemTest):
         except for location and display name.
         """
         def duplicate_and_verify(source_usage_key, parent_usage_key):
+            # pylint:disable=missing-docstring
             usage_key = self._duplicate_item(parent_usage_key, source_usage_key)
             self.assertTrue(
                 check_equality(source_usage_key, usage_key, parent_usage_key),
@@ -379,6 +380,7 @@ class TestDuplicateItem(ItemTest):
             )
 
         def check_equality(source_usage_key, duplicate_usage_key, parent_usage_key=None):
+            # pylint:disable=missing-docstring
             original_item = self.get_item_from_modulestore(source_usage_key)
             duplicated_item = self.get_item_from_modulestore(duplicate_usage_key)
 

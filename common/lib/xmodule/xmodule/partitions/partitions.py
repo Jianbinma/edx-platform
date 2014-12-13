@@ -187,7 +187,9 @@ class UserPartition(namedtuple("UserPartition", "id name description groups sche
         """
         Returns the group with the specified id.  Raises NoSuchUserPartitionGroupError if not found.
         """
-        for group in self.groups:    # pylint: disable=no-member
+        # pylint: disable=no-member
+
+        for group in self.groups:
             if group.id == group_id:
                 return group
 

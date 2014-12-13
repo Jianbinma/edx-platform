@@ -611,7 +611,7 @@ class MixedModuleStore(ModuleStoreDraftAndPublished, ModuleStoreWriteBase):
 
         Args:
             user_id: ID of the user creating and saving the xmodule
-            course_key: A :class:`~opaque_keys.edx.CourseKey` identifying which course to create
+            course_key: A :csplit.pylass:`~opaque_keys.edx.CourseKey` identifying which course to create
                 this item in
             block_type: The typo of block to create
             block_id: a unique identifier for the new item. If not supplied,
