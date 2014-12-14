@@ -6,6 +6,7 @@ from django.conf import settings
 
 from xblock.validation import ValidationMessage
 from xmodule.modulestore import ModuleStoreEnum
+from xmodule.modulestore.modulestore_settings import update_module_store_settings
 from xmodule.modulestore.tests.factories import CourseFactory, ItemFactory
 from xmodule.modulestore.tests.django_utils import ModuleStoreTestCase
 from xmodule.partitions.partitions import Group, UserPartition
@@ -142,7 +143,13 @@ class XBlockGetParentTest(LmsXBlockMixinTestCase):
     """
     def _pre_setup(self):
         # load the one xml course into the xml store
-        settings.MODULESTORE['default']['OPTIONS']['mappings']['edX/toy/2012_Fall'] = ModuleStoreEnum.Type.xml
+        update_module_store_settings(
+            settings.MODULESTORE,
+            mappings={'edX/toy/2012_Fall': ModuleStoreEnum.Type.xml},
+            xml_store_options={
+                'data_dir': settings.COMMON_TEST_DATA_ROOT  # where toy course lives
+            },
+        )
         super(XBlockGetParentTest, self)._pre_setup()
 
     @ddt.data(ModuleStoreEnum.Type.mongo, ModuleStoreEnum.Type.split, ModuleStoreEnum.Type.xml)

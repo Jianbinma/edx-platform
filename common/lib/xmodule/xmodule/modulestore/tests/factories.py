@@ -243,7 +243,7 @@ class ItemFactory(XModuleFactory):
                     # module is last child of parent
                     return published_parent.get_children()[-1]
                 else:
-                    return module
+                    return store.get_item(location)
             elif publish_item:
                 return store.publish(location, user_id)
             else:
